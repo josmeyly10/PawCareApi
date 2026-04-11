@@ -13,7 +13,6 @@ public class ServicesController : ControllerBase
 
     public ServicesController(AppDbContext db) => _db = db;
 
-    
     [HttpGet]
     public async Task<ActionResult<List<ServiceResponse>>> GetAll()
     {
@@ -29,7 +28,6 @@ public class ServicesController : ControllerBase
         }).ToList());
     }
 
-    
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<ServiceResponse>> GetById(Guid id)
     {
@@ -46,5 +44,24 @@ public class ServicesController : ControllerBase
             Price = s.Price,
             DurationMinutes = s.DurationMinutes
         });
+    }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        var service = await _db.Services
+            .Include(s => s.AppointmentServices)
+            .FirstOrDefaultAsync(s => s.Id == id);
+
+        if (service is null)
+            return NotFound(new { message = "Servicio no encontrado" });
+
+        if (service.AppointmentServices.Any())
+            return Conflict(new { message = "No se puede eliminar un servicio que tiene citas asociadas" });
+
+        _db.Services.Remove(service);
+        await _db.SaveChangesAsync();
+
+        return NoContent();
     }
 }

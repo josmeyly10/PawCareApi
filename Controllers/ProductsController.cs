@@ -15,7 +15,6 @@ public class ProductsController : ControllerBase
 
     public ProductsController(AppDbContext db) => _db = db;
 
-    
     [HttpGet]
     public async Task<ActionResult<List<ProductResponse>>> GetAll([FromQuery] string? category)
     {
@@ -57,7 +56,6 @@ public class ProductsController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = product.Id }, ToResponse(product));
     }
 
-    
     [HttpPatch("{id:guid}/stock")]
     public async Task<IActionResult> UpdateStock(Guid id, [FromBody] int newStock)
     {
@@ -70,6 +68,20 @@ public class ProductsController : ControllerBase
         await _db.SaveChangesAsync();
 
         return Ok(new { message = "Stock actualizado", stock = newStock });
+    }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        var product = await _db.Products.FindAsync(id);
+
+        if (product is null)
+            return NotFound(new { message = "Producto no encontrado" });
+
+        _db.Products.Remove(product);
+        await _db.SaveChangesAsync();
+
+        return NoContent();
     }
 
     private static ProductResponse ToResponse(Product p) => new()

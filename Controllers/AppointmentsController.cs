@@ -14,7 +14,6 @@ public class AppointmentsController : ControllerBase
 
     public AppointmentsController(AppDbContext db) => _db = db;
 
-    
     [HttpPost]
     public async Task<ActionResult<AppointmentResponse>> Create([FromBody] CreateAppointmentRequest req)
     {
@@ -57,7 +56,6 @@ public class AppointmentsController : ControllerBase
             await FetchResponse(appointment.Id));
     }
 
-    
     [HttpGet]
     public async Task<ActionResult<List<AppointmentResponse>>> GetAll(
         [FromQuery] string? date,
@@ -79,7 +77,6 @@ public class AppointmentsController : ControllerBase
         return Ok(list.Select(ToResponse).ToList());
     }
 
-    
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<AppointmentResponse>> GetById(Guid id)
     {
@@ -94,7 +91,6 @@ public class AppointmentsController : ControllerBase
         return Ok(ToResponse(appt));
     }
 
-    
     [HttpPatch("{id:guid}/status")]
     public async Task<ActionResult<AppointmentResponse>> UpdateStatus(
         Guid id, [FromBody] UpdateAppointmentStatusRequest req)
@@ -122,7 +118,25 @@ public class AppointmentsController : ControllerBase
         return Ok(ToResponse(appt));
     }
 
-    
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        var appt = await _db.Appointments
+            .Include(a => a.AppointmentServices)
+            .FirstOrDefaultAsync(a => a.Id == id);
+
+        if (appt is null)
+            return NotFound(new { message = "Cita no encontrada" });
+
+        if (appt.Status == AppointmentStatus.InProgress)
+            return Conflict(new { message = "No se puede eliminar una cita en progreso" });
+
+        _db.Appointments.Remove(appt);
+        await _db.SaveChangesAsync();
+
+        return NoContent();
+    }
+
     internal static AppointmentResponse ToResponse(Appointment a) => new()
     {
         Id = a.Id,

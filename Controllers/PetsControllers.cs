@@ -14,7 +14,6 @@ public class PetsController : ControllerBase
 
     public PetsController(AppDbContext db) => _db = db;
 
-   
     [HttpPost]
     public async Task<ActionResult<PetResponse>> Create([FromBody] CreatePetRequest req)
     {
@@ -48,7 +47,6 @@ public class PetsController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = pet.Id }, await FetchResponse(pet.Id));
     }
 
-    
     [HttpGet]
     public async Task<ActionResult<List<PetResponse>>> GetAll([FromQuery] string? search)
     {
@@ -64,7 +62,6 @@ public class PetsController : ControllerBase
         return Ok(pets.Select(ToResponse).ToList());
     }
 
-    
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<PetResponse>> GetById(Guid id)
     {
@@ -76,7 +73,6 @@ public class PetsController : ControllerBase
         return Ok(ToResponse(pet));
     }
 
-    
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<PetResponse>> Update(Guid id, [FromBody] UpdatePetRequest req)
     {
@@ -94,7 +90,6 @@ public class PetsController : ControllerBase
         return Ok(ToResponse(pet));
     }
 
-    
     [HttpGet("{id:guid}/history")]
     public async Task<ActionResult<List<AppointmentResponse>>> GetHistory(Guid id)
     {
@@ -111,7 +106,29 @@ public class PetsController : ControllerBase
         return Ok(appointments.Select(AppointmentsController.ToResponse).ToList());
     }
 
-    
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        var pet = await _db.Pets
+            .Include(p => p.Appointments)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
+        if (pet is null)
+            return NotFound(new { message = "Mascota no encontrada" });
+
+        var hasActiveAppointments = pet.Appointments.Any(a =>
+            a.Status == AppointmentStatus.Pending ||
+            a.Status == AppointmentStatus.InProgress);
+
+        if (hasActiveAppointments)
+            return Conflict(new { message = "No se puede eliminar una mascota con citas pendientes o en progreso" });
+
+        _db.Pets.Remove(pet);
+        await _db.SaveChangesAsync();
+
+        return NoContent();
+    }
+
     internal static PetResponse ToResponse(Pet p) => new()
     {
         Id = p.Id,
@@ -129,7 +146,6 @@ public class PetsController : ControllerBase
         }
     };
 
-    
     internal static PetSummaryResponse ToSummary(Pet p) => new()
     {
         Id = p.Id,

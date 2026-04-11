@@ -31,7 +31,6 @@ public class OwnersController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = owner.Id }, ToResponse(owner));
     }
 
-   
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<OwnerResponse>> GetById(Guid id)
     {
@@ -45,7 +44,6 @@ public class OwnersController : ControllerBase
         return Ok(ToResponse(owner));
     }
 
-  
     [HttpGet]
     public async Task<ActionResult<List<OwnerResponse>>> GetAll()
     {
@@ -57,7 +55,6 @@ public class OwnersController : ControllerBase
         return Ok(owners.Select(ToResponse).ToList());
     }
 
-   
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<OwnerResponse>> Update(Guid id, [FromBody] UpdateOwnerRequest req)
     {
@@ -77,7 +74,6 @@ public class OwnersController : ControllerBase
         return Ok(ToResponse(owner));
     }
 
-   
     [HttpGet("{id:guid}/pets")]
     public async Task<ActionResult<List<PetSummaryResponse>>> GetPets(Guid id)
     {
@@ -100,7 +96,25 @@ public class OwnersController : ControllerBase
         return Ok(pets);
     }
 
-    
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        var owner = await _db.Owners
+            .Include(o => o.Pets)
+            .FirstOrDefaultAsync(o => o.Id == id);
+
+        if (owner is null)
+            return NotFound(new { message = "Dueño no encontrado" });
+
+        if (owner.Pets.Any())
+            return Conflict(new { message = "No se puede eliminar un dueño con mascotas registradas" });
+
+        _db.Owners.Remove(owner);
+        await _db.SaveChangesAsync();
+
+        return NoContent();
+    }
+
     private static OwnerResponse ToResponse(Owner o) => new()
     {
         Id = o.Id,
